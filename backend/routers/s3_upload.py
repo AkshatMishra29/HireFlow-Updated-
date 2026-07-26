@@ -42,11 +42,26 @@ async def upload_resume_to_s3(
     s3_key = f"resumes/{safe_email}/{timestamp}_{file.filename}"
 
     file_bytes = await file.read()
-    if not file_bytes or len(file_bytes.strip()) < 50:
+    if not file_bytes or len(file_bytes.strip()) < 100:
         raise HTTPException(
             status_code=400, 
             detail="Security Guardrail Triggered: The uploaded resume file is empty or unreadable. Please upload a valid resume document."
         )
+
+    # Smart Resume Guardrail: Extract text and check content richness (min 40 words)
+    try:
+        from agents.resume_parser import _extract_text_pure_python
+        resume_text = _extract_text_pure_python(file_bytes, file.filename)
+        words = [w for w in resume_text.strip().split() if len(w) > 1]
+        if len(words) < 40:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Guardrail Triggered: The uploaded resume document contains insufficient content (less than 40 words). Please upload a complete, detailed candidate resume."
+            )
+    except HTTPException as he:
+        raise he
+    except Exception as parse_err:
+        print(f"[Resume Guardrail Warning] Could not pre-verify resume text: {parse_err}")
 
     content_type_map = {
         ".pdf": "application/pdf",

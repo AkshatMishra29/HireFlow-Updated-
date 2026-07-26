@@ -354,8 +354,12 @@ async def parse_job_description(
         from services.llm import llm_call, parse_json_from_llm
 
         raw_text = _extract_text_pure_python(contents, filename)
-        if not raw_text.strip():
-            raise HTTPException(status_code=400, detail="Could not extract text from the JD document.")
+        words = [w for w in raw_text.strip().split() if len(w) > 1]
+        if len(words) < 25:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Guardrail Triggered: The uploaded Job Description document contains sparse or insufficient details (less than 25 words). Please upload a complete, detailed Job Description."
+            )
 
         system_prompt = """You are an expert HR assistant. Extract structured job posting details from a Job Description document.
 Return ONLY valid JSON with this exact structure:
