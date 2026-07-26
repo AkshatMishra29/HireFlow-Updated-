@@ -30,6 +30,13 @@ const AdminDashboard = () => {
   const [newPasswordVal, setNewPasswordVal] = useState('');
   const [resettingPassword, setResettingPassword] = useState(false);
 
+  const [hrSearchQuery, setHrSearchQuery] = useState('');
+
+  const filteredHrList = hrList.filter(hr => {
+    const q = hrSearchQuery.toLowerCase();
+    return (hr.name || '').toLowerCase().includes(q) || (hr.email || '').toLowerCase().includes(q);
+  });
+
   const fetchStatsAndHR = async () => {
     try {
       const [jobsRes, hrRes, intRes] = await Promise.all([
@@ -185,9 +192,21 @@ const AdminDashboard = () => {
                     Directly create HR credentials, deactivate users, or delete HR accounts.
                   </p>
                 </div>
-                <Button onClick={() => setShowModal(true)}>
-                  <FiPlus className="mr-1.5" /> Create HR Account
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative w-64">
+                    <FiUsers className="absolute left-3 top-2.5 text-gray-400 w-3.5 h-3.5" />
+                    <input
+                      type="text"
+                      placeholder="Search HR name or email..."
+                      value={hrSearchQuery}
+                      onChange={(e) => setHrSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    />
+                  </div>
+                  <Button onClick={() => setShowModal(true)}>
+                    <FiPlus className="mr-1.5" /> Create HR Account
+                  </Button>
+                </div>
               </div>
 
               <Card className="overflow-hidden">
@@ -202,14 +221,14 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-xs text-gray-700 dark:text-gray-300">
-                      {hrList.length === 0 ? (
+                      {filteredHrList.length === 0 ? (
                         <tr>
                           <td colSpan="4" className="p-8 text-center text-gray-400">
-                            No HR accounts created yet. Click "Create HR Account" above to provision one.
+                            No HR accounts matched your search query.
                           </td>
                         </tr>
                       ) : (
-                        hrList.map((hr) => (
+                        filteredHrList.map((hr) => (
                           <tr key={hr.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition">
                             <td className="p-4 font-bold text-gray-900 dark:text-white">{hr.name}</td>
                             <td className="p-4 font-mono text-gray-500 dark:text-gray-400">{hr.email}</td>
