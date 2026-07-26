@@ -25,9 +25,12 @@ FROM nginx:alpine AS serve-stage
 # Copy static build artifacts from build-stage to Nginx public html folder
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Custom nginx config to support React SPA HTML5 routing, API proxy, and HTTPS readiness
+# Custom nginx config to support React SPA HTML5 routing, API proxy, and dual HTTP + HTTPS SSL
 RUN echo 'server { \
     listen 80; \
+    listen 443 ssl; \
+    ssl_certificate /etc/nginx/ssl/nginx.crt; \
+    ssl_certificate_key /etc/nginx/ssl/nginx.key; \
     location / { \
         root /usr/share/nginx/html; \
         index index.html index.htm; \
