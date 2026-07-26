@@ -251,3 +251,88 @@ HireFlow Team
     except Exception as e:
         print(f"[OTP Email Error] Failed to send OTP to {candidate_email}: {e}")
         return False
+
+def send_rejection_email(candidate_email: str, candidate_name: str, job_title: str):
+    """Send professional, polite candidate rejection status email via Gmail SMTP."""
+    sender = os.getenv("EMAIL_SENDER")
+    password = os.getenv("EMAIL_APP_PASSWORD")
+
+    if not sender or not password or "your_email" in sender:
+        print(f"[Rejection Email] (DEV FALLBACK) Rejection notice for {candidate_email} on role {job_title}")
+        return True
+
+    try:
+        msg = MIMEMultipart("mixed")
+        msg["Subject"] = f"Update regarding your application for {job_title} — HireFlow"
+        msg["From"] = f"HireFlow Recruitment <{sender}>"
+        msg["To"] = candidate_email
+        msg["Reply-To"] = sender
+
+        text_body = f"""Hello {candidate_name},
+
+Thank you for taking the time to apply for the {job_title} position at HireFlow.
+
+After carefully reviewing your profile and credentials, we regret to inform you that we have decided to move forward with other candidates whose qualifications more closely match the current requirements of this role.
+
+We truly appreciate your interest in joining our team and wish you the best in your job search and professional endeavors.
+
+Best regards,
+Talent Acquisition Team
+HireFlow
+"""
+        msg.attach(MIMEText(text_body, "plain"))
+
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 30px 10px;">
+            <div style="max-width: 500px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);">
+              
+              <!-- Header -->
+              <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 24px 28px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 800; tracking-tight: -0.5px;">HireFlow</h1>
+                <p style="color: #94a3b8; margin: 4px 0 0 0; font-size: 12px; font-weight: 600;">Application Status Update</p>
+              </div>
+
+              <!-- Content -->
+              <div style="padding: 28px;">
+                <p style="font-size: 15px; font-weight: 700; color: #1e293b; margin-top: 0;">Dear {candidate_name},</p>
+                <p style="font-size: 13px; color: #475569; line-height: 1.6;">
+                  Thank you for applying for the <strong>{job_title}</strong> position at HireFlow.
+                </p>
+                <p style="font-size: 13px; color: #475569; line-height: 1.6;">
+                  After careful consideration, our recruitment team has decided to proceed with other candidates whose technical profile and experience align more closely with the current requirements for this specific role.
+                </p>
+                
+                <div style="background-color: #f1f5f9; border-left: 4px solid #94a3b8; padding: 14px 18px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 12px; color: #475569; font-weight: 500;">
+                    We will keep your profile in our talent network for future opportunities matching your expertise.
+                  </p>
+                </div>
+
+                <p style="font-size: 13px; color: #475569; line-height: 1.6; margin-bottom: 0;">
+                  We sincerely thank you for your interest in HireFlow and wish you great success in your career journey.
+                </p>
+              </div>
+
+              <!-- Footer -->
+              <div style="background-color: #f8fafc; padding: 16px 28px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8;">
+                © {datetime.now().year} HireFlow Agentic Recruitment Platform. All rights reserved.
+              </div>
+
+            </div>
+          </body>
+        </html>
+        """
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=8) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(sender, password)
+            server.sendmail(sender, candidate_email, msg.as_string())
+        print(f"[Rejection Email] Delivered rejection email to {candidate_email} for role {job_title}")
+        return True
+    except Exception as e:
+        print(f"[Rejection Email Error] Failed to send rejection email: {e}")
+        return False

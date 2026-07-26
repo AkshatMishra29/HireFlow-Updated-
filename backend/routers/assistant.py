@@ -184,12 +184,25 @@ Return valid JSON with this exact structure:
 @router.post("/interview-coach")
 async def interview_coach(
     payload: dict,
-    current_user: dict = Depends(require_role(["candidate"]))
+    current_user: dict = Depends(get_current_user)
 ):
-    """Generates customized technical & behavioral practice interview questions based on job description & candidate fit."""
+    """Generates customized candidate interview questions targeting specific skill gaps & evaluation rationale."""
     job_id = payload.get("job_id")
+    application_id = payload.get("application_id")
     job_title = "Software Developer"
     must_skills = []
+    gap_summary = ""
+
+    if application_id and ObjectId.is_valid(application_id):
+        app_doc = await db.applications.find_one({"_id": ObjectId(application_id)})
+        if app_doc:
+            job_id = app_doc.get("job_id", job_id)
+            # Find candidate AI screening result gaps
+            screening_result = await db.screening_results.find_one({"job_id": job_id, "resume_id": app_doc.get("resume_id")})
+            if screening_result:
+                evidence = screening_result.get("evidence_quotes", [])
+                gaps = [e.get("gap_analysis") or e.get("quote") for e in evidence if isinstance(e, dict) and (e.get("gap_analysis") or "missing" in str(e).lower())]
+                gap_summary = "\n".join(gaps[:3]) if gaps else str(screening_result.get("summary", ""))
 
     if job_id and ObjectId.is_valid(job_id):
         job = await db.jobs.find_one({"_id": ObjectId(job_id)})
@@ -197,20 +210,21 @@ async def interview_coach(
             job_title = job.get("title", job_title)
             must_skills = job.get("must_have_skills", [])
 
-    system_prompt = """You are an elite Tech Interview Coach. Generate targeted practice interview questions.
+    system_prompt = """You are an elite Recruiter & Technical Interviewer. Generate targeted interview questions specifically targeting the candidate's technical gaps and resume weaknesses for the job.
 Return valid JSON with this exact structure:
 {
   "role": "Job Title",
   "questions": [
     {
-      "type": "Technical / System Design / Behavioral",
-      "question": "Question text",
-      "hint": "Key points candidate should cover in answer"
+      "type": "Gap Assessment / Technical / Behavioral",
+      "question": "Question text probing the candidate gap",
+      "target_gap": "The specific gap or skill being probed",
+      "hint": "Ideal response signals to look for"
     }
   ]
 }"""
 
-    user_prompt = f"Target Role: {job_title}\nKey Required Skills: {must_skills}\n\nGenerate 4 high-yield practice interview questions (2 technical, 1 system design/architecture, 1 behavioral) with ideal answer hints."
+    user_prompt = f"Target Role: {job_title}\nKey Required Skills: {must_skills}\nCandidate Identified Gaps / Rationale:\n{gap_summary or 'No explicit gaps identified; probe advanced architecture and domain edge cases.'}\n\nGenerate 4 high-yield targeted interview questions targeting identified skill gaps."
 
     resp, _, _ = llm_call(system_prompt, user_prompt)
     coach_json = parse_json_from_llm(resp)
@@ -218,7 +232,7 @@ Return valid JSON with this exact structure:
     await db.chat_history.insert_one({
         "user_id": current_user["email"],
         "agent_type": "interview_coach",
-        "question": f"Practice Questions for {job_title}",
+        "question": f"Targeted Interview Questions for {job_title}",
         "response": coach_json,
         "created_at": datetime.utcnow().isoformat()
     })

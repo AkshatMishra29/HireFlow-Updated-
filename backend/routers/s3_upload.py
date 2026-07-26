@@ -42,6 +42,12 @@ async def upload_resume_to_s3(
     s3_key = f"resumes/{safe_email}/{timestamp}_{file.filename}"
 
     file_bytes = await file.read()
+    if not file_bytes or len(file_bytes.strip()) < 50:
+        raise HTTPException(
+            status_code=400, 
+            detail="Security Guardrail Triggered: The uploaded resume file is empty or unreadable. Please upload a valid resume document."
+        )
+
     content_type_map = {
         ".pdf": "application/pdf",
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

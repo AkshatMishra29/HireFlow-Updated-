@@ -566,6 +566,7 @@ async def get_applications_for_job(
 async def update_application_status(
     application_id: str,
     status_data: ApplicationStatusUpdate,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(require_role(["hr"]))
 ):
     if not ObjectId.is_valid(application_id):
@@ -583,13 +584,29 @@ async def update_application_status(
         job = await db.jobs.find_one({"_id": ObjectId(app_doc["job_id"])})
         if job:
             job_title = job.get("title", job_title)
+
+    candidate_email = app_doc["candidate_id"]
+    candidate_user = await db.users.find_one({"email": candidate_email})
+    candidate_name = (
+        (candidate_user.get("name") if candidate_user else None) or
+        (candidate_user.get("full_name") if candidate_user else None) or
+        candidate_email.split("@")[0].replace(".", " ").capitalize()
+    )
+
+    # In-App Notification
     await db.notifications.insert_one({
-        "user_id": app_doc["candidate_id"],
+        "user_id": candidate_email,
         "message": f"Your application status for '{job_title}' was updated to '{status_data.status.replace('_', ' ').title()}'",
         "type": "status_update",
         "read": False,
         "created_at": now_iso
     })
+
+    # Dispatch Rejection Email via background task if candidate is marked 'rejected'
+    if status_data.status == "rejected":
+        from services.scheduler import send_rejection_email
+        background_tasks.add_task(send_rejection_email, candidate_email=candidate_email, candidate_name=candidate_name, job_title=job_title)
+
     updated_app = await db.applications.find_one({"_id": ObjectId(application_id)})
     return serialize_doc(updated_app)
 

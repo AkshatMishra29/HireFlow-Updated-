@@ -10,17 +10,24 @@ from database import db
 
 load_dotenv()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
+
 SECRET_KEY = os.getenv("JWT_SECRET") or "hireflow_jwt_secret_key_fallback_2026"
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        return False
+
 
 def create_token(data: dict, expires_minutes: int = 60 * 24):
     payload = data.copy()
