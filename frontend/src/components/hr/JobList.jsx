@@ -288,12 +288,26 @@ const JobList = ({ onSelectJobForApplicants, showPostButton = false }) => {
     } catch { toast.error('Failed to update status'); }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredJobs = jobs.filter((job) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      (job.title || '').toLowerCase().includes(q) ||
+      (job.department || '').toLowerCase().includes(q) ||
+      (job.location || '').toLowerCase().includes(q) ||
+      (job.description || '').toLowerCase().includes(q);
+    const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">Job Postings</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{jobs.length} total postings · Click card for job analytics</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{filteredJobs.length} of {jobs.length} postings shown · Click card for applicants</p>
         </div>
         {showPostButton && (
           <Button variant="primary" size="md" onClick={() => { setEditingJob(null); setIsFormOpen(true); }}>
@@ -302,20 +316,39 @@ const JobList = ({ onSelectJobForApplicants, showPostButton = false }) => {
         )}
       </div>
 
+      {/* HR Search & Status Filter Bar */}
+      <div className="bg-white dark:bg-gray-800 p-3.5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row gap-3">
+        <div className="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Search job title, location, or department..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-4 pr-4 py-2 text-xs bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-3 py-2 text-xs font-semibold bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+        >
+          <option value="all">All Statuses</option>
+          <option value="open">Open Only</option>
+          <option value="closed">Closed Only</option>
+        </select>
+      </div>
+
       {loading ? (
         <div className="py-12 text-center text-sm text-gray-500 animate-pulse">Loading job postings...</div>
-      ) : jobs.length === 0 ? (
+      ) : filteredJobs.length === 0 ? (
         <Card className="text-center py-12">
           <FiBriefcase className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">No Job Postings</h3>
-          <p className="text-xs text-gray-500 mt-1">Create your first job opening to start hiring.</p>
-          <Button variant="primary" size="sm" className="mt-4" onClick={() => { setEditingJob(null); setIsFormOpen(true); }}>
-            <FiPlus className="mr-2" /> Create Job
-          </Button>
+          <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">No Job Postings Matched</h3>
+          <p className="text-xs text-gray-500 mt-1">Try adjusting your search criteria.</p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {jobs.map((job) => (
+          {filteredJobs.map((job) => (
             <div
               key={job.id}
               className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 flex flex-col justify-between hover:shadow-lg hover:border-indigo-200 dark:hover:border-indigo-800 transition-all cursor-pointer group"

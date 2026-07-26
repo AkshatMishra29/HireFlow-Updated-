@@ -25,16 +25,25 @@ const MyInterviews = () => {
     fetchInterviews();
   }, []);
 
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredInterviews = interviews.filter((item) => {
+    const q = searchQuery.toLowerCase();
+    const role = (item.job_title || '').toLowerCase();
+    const time = (item.scheduled_time || '').toLowerCase();
+    return role.includes(q) || time.includes(q);
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center space-x-2">
             <FiCalendar className="text-indigo-600 dark:text-indigo-400" />
             <span>My Scheduled Interviews</span>
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            View upcoming interview rounds, Google Meet links, and status.
+            {filteredInterviews.length} of {interviews.length} upcoming rounds shown.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchInterviews}>
@@ -42,23 +51,36 @@ const MyInterviews = () => {
         </Button>
       </div>
 
+      {/* Candidate Search Bar */}
+      {interviews.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <input
+            type="text"
+            placeholder="Search interview by role title or scheduled date..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 text-xs bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-3">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="h-28 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
           ))}
         </div>
-      ) : interviews.length === 0 ? (
+      ) : filteredInterviews.length === 0 ? (
         <Card className="text-center py-16">
           <FiCalendar className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No Scheduled Interviews</h3>
+          <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">No Matching Interviews</h3>
           <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
-            Once HR shortlists your application and schedules an interview round, your Google Meet invite will appear here.
+            Try clearing your search query.
           </p>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {interviews.map((item) => (
+          {filteredInterviews.map((item) => (
             <Card key={item.id} className="p-5 flex flex-col justify-between space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition shadow-sm">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
