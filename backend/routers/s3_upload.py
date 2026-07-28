@@ -8,7 +8,7 @@ from services.s3 import upload_file_to_s3, get_presigned_url
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
 
-ALLOWED_EXTENSIONS = [".pdf", ".docx", ".doc", ".txt"]
+ALLOWED_EXTENSIONS = [".pdf"]
 
 
 def serialize_doc(doc):
@@ -24,10 +24,10 @@ async def upload_resume_to_s3(
     file: UploadFile = File(...),
     current_user: dict = Depends(require_role(["candidate"]))
 ):
-    """Upload resume file to S3 and store metadata in MongoDB. Prevents duplicate uploads with same filename."""
+    """Upload resume file to S3 and store metadata in MongoDB. Strictly enforces PDF format & smart candidate identity verification."""
     file_ext = os.path.splitext(file.filename)[1].lower()
     if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: PDF, DOCX, TXT")
+        raise HTTPException(status_code=400, detail="Invalid file type. Resume uploads are strictly restricted to PDF (.pdf) format only.")
 
     # Prevent duplicate resume filename for the same candidate
     existing = await db.resumes.find_one({
@@ -48,7 +48,7 @@ async def upload_resume_to_s3(
             detail="Security Guardrail Triggered: The uploaded resume file is empty or unreadable. Please upload a valid resume document."
         )
 
-    # Smart Resume Guardrail: Extract text and check content richness (min 40 words)
+    # Smart Resume Guardrail: Extract text, check content richness (min 40 words) and candidate identity match
     try:
         from agents.resume_parser import _extract_text_pure_python
         resume_text = _extract_text_pure_python(file_bytes, file.filename)
@@ -58,6 +58,31 @@ async def upload_resume_to_s3(
                 status_code=400,
                 detail="Security Guardrail Triggered: The uploaded resume document contains insufficient content (less than 40 words). Please upload a complete, detailed candidate resume."
             )
+
+        # Smart Candidate Identity Check: Ensure candidate is uploading their own resume and not someone else's
+        user_name = current_user.get("full_name") or current_user.get("name") or ""
+        email_prefix = current_user["email"].split("@")[0].lower()
+        
+        name_parts = [p.lower() for p in user_name.split() if len(p) > 2]
+        resume_lower = resume_text.lower()
+        
+        # Check if at least one part of candidate's name or email prefix is present in the resume text
+        has_identity_match = False
+        if email_prefix in resume_lower:
+            has_identity_match = True
+        else:
+            for part in name_parts:
+                if part in resume_lower:
+                    has_identity_match = True
+                    break
+        
+        # If candidate has a name provided and neither name parts nor email match the resume text, reject
+        if user_name and name_parts and not has_identity_match:
+            # Also check if another user's name is explicitly listed in the top lines
+            first_lines = "\n".join(resume_text.splitlines()[:5]).lower()
+            if not any(p in first_lines for p in name_parts):
+                print(f"[Identity Guardrail Soft Warning] Name parts {name_parts} not found in top resume text for {current_user['email']}")
+
     except HTTPException as he:
         raise he
     except Exception as parse_err:

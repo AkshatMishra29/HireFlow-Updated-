@@ -70,7 +70,8 @@ const RecruitmentAnalytics = () => {
             { label: 'Scheduled Interviews', count: funnel.interview || 0, color: 'bg-purple-500' },
             { label: 'Hired Candidates', count: funnel.hired || 0, color: 'bg-emerald-600' },
           ].map((stage, idx) => {
-            const pct = Math.round((stage.count / maxFunnelVal) * 100);
+            const total = data?.total_applications || maxFunnelVal || 1;
+            const pct = Math.min(100, Math.round((stage.count / total) * 100));
             return (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-300">

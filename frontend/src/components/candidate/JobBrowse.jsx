@@ -247,7 +247,7 @@ const JobBrowse = () => {
                 </label>
                 <input
                   type="file"
-                  accept=".pdf,.docx,.doc,.txt"
+                  accept=".pdf,application/pdf"
                   onChange={handleFileUploadOnApply}
                   disabled={uploading}
                   className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"

@@ -231,12 +231,12 @@ const ResumeUpload = () => {
                   browse files
                   <input
                     type="file"
-                    accept=".pdf,.docx,.doc,.txt"
+                    accept=".pdf,application/pdf"
                     onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
                     className="hidden"
                   />
                 </label>
-                {' · PDF, DOCX, TXT · Max 10MB'}
+                {' · PDF format only (.pdf) · Max 10MB'}
               </p>
             )}
           </div>
