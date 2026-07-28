@@ -354,11 +354,26 @@ async def parse_job_description(
         from services.llm import llm_call, parse_json_from_llm
 
         raw_text = _extract_text_pure_python(contents, filename)
-        words = [w for w in raw_text.strip().split() if len(w) > 1]
-        if len(words) < 25:
+        jd_lower = raw_text.lower()
+
+        # 1. Anti-Prompt Injection Detection
+        MALICIOUS_PROMPT_PATTERNS = [
+            "ignore previous instructions", "ignore all previous", "system prompt",
+            "override evaluation", "disregard instructions", "you are now an assistant"
+        ]
+        if any(pat in jd_lower for pat in MALICIOUS_PROMPT_PATTERNS):
             raise HTTPException(
                 status_code=400,
-                detail="Security Guardrail Triggered: The uploaded Job Description document contains sparse or insufficient details (less than 25 words). Please upload a complete, detailed Job Description."
+                detail="Security Guardrail Triggered: Malicious prompt injection pattern detected in Job Description document."
+            )
+
+        # 2. Sparse Content Check (Min 40 words & 4 distinct lines / points)
+        lines = [line.strip() for line in raw_text.splitlines() if len(line.strip()) > 3]
+        words = [w for w in raw_text.strip().split() if len(w) > 1]
+        if len(words) < 40 or len(lines) < 4:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Guardrail Triggered: Sparse Job Description detected (less than 40 words or 4 structured lines). Brief 3-point job descriptions are rejected. Please upload a detailed Job Description."
             )
 
         system_prompt = """You are an expert HR assistant. Extract structured job posting details from a Job Description document.

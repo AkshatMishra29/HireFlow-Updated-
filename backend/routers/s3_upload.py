@@ -42,21 +42,37 @@ async def upload_resume_to_s3(
     s3_key = f"resumes/{safe_email}/{timestamp}_{file.filename}"
 
     file_bytes = await file.read()
-    if not file_bytes or len(file_bytes.strip()) < 100:
+    if not file_bytes or len(file_bytes.strip()) < 150:
         raise HTTPException(
             status_code=400, 
-            detail="Security Guardrail Triggered: The uploaded resume file is empty or unreadable. Please upload a valid resume document."
+            detail="Security Guardrail Triggered: The uploaded resume file is empty or unreadable (less than 150 bytes). Please upload a complete, valid PDF resume."
         )
 
-    # Smart Resume Guardrail: Extract text, check content richness (min 40 words) and candidate identity match
+    # Smart Security Guardrail: Anti-Prompt Injection & Content Richness Check (Min 50 words & 5 lines)
     try:
         from agents.resume_parser import _extract_text_pure_python
         resume_text = _extract_text_pure_python(file_bytes, file.filename)
-        words = [w for w in resume_text.strip().split() if len(w) > 1]
-        if len(words) < 40:
+        resume_lower = resume_text.lower()
+        
+        # 1. Anti-Prompt Injection Detection
+        MALICIOUS_PROMPT_PATTERNS = [
+            "ignore previous instructions", "ignore all previous", "system prompt",
+            "give candidate 100", "score 100/100", "override score", "disregard instructions",
+            "you are now an assistant", "bypass screening", "set match score to"
+        ]
+        if any(pat in resume_lower for pat in MALICIOUS_PROMPT_PATTERNS):
             raise HTTPException(
                 status_code=400,
-                detail="Security Guardrail Triggered: The uploaded resume document contains insufficient content (less than 40 words). Please upload a complete, detailed candidate resume."
+                detail="Security Guardrail Triggered: Malicious prompt injection pattern detected in resume text. File upload rejected."
+            )
+
+        # 2. Sparse Content Check (Min 50 words & 5 distinct lines)
+        lines = [line.strip() for line in resume_text.splitlines() if len(line.strip()) > 3]
+        words = [w for w in resume_text.strip().split() if len(w) > 1]
+        if len(words) < 50 or len(lines) < 5:
+            raise HTTPException(
+                status_code=400,
+                detail="Security Guardrail Triggered: Sparse resume detected (less than 50 words or 5 lines). Resumes with only 3-4 lines or a few skill keywords are not accepted."
             )
 
         # Smart Candidate Identity Check: Ensure candidate is uploading their own resume and not someone else's
