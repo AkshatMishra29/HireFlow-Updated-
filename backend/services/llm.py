@@ -8,11 +8,14 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 
-# List of Groq models in order of preference (if 70b hits rate limit, switch to instant/gemma)
+# List of Groq models in order of preference (if 70b hits rate limit, switch across all models)
 GROQ_MODELS = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
     "gemma2-9b-it",
+    "llama-3.2-11b-vision-preview",
+    "llama-3.2-3b-preview",
+    "llama-3.2-1b-preview",
     "mixtral-8x7b-32768",
 ]
 
